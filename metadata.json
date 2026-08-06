@@ -1,0 +1,6 @@
+{
+  "name": "TravelGPT Pro",
+  "description": "AI-native travel copilot featuring multi-agent trip planning, real-time replanning, budget optimization, flight and hotel intelligence, visa and packing assistant, and interactive travel journal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
