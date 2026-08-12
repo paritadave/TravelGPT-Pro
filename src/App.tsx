@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Trip, Persona, FlightOption, HotelOption } from './types';
 import { SAMPLE_TRIPS, INITIAL_PERSONAS } from './data/mockData';
 import { Navbar } from './components/Navbar';
@@ -105,70 +106,90 @@ export default function App() {
 
         {/* View Switcher Container */}
         <main className="flex-1 overflow-y-auto pb-16 md:pb-8">
-          {activeTab === 'dashboard' && (
-            <DashboardView
-              activeTrip={activeTrip}
-              trips={trips}
-              selectedPersona={selectedPersona}
-              onSelectTrip={handleSelectTrip}
-              onOpenNewTripModal={() => setIsNewTripModalOpen(true)}
-              onNavigateTab={setActiveTab}
-            />
-          )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.22, ease: 'easeOut' }}
+              className="h-full"
+            >
+              {activeTab === 'dashboard' && (
+                <DashboardView
+                  activeTrip={activeTrip}
+                  trips={trips}
+                  selectedPersona={selectedPersona}
+                  onSelectTrip={handleSelectTrip}
+                  onOpenNewTripModal={() => setIsNewTripModalOpen(true)}
+                  onNavigateTab={setActiveTab}
+                  currency={currency}
+                />
+              )}
 
-          {activeTab === 'copilot' && <CopilotView activeTrip={activeTrip} />}
+              {activeTab === 'copilot' && <CopilotView activeTrip={activeTrip} />}
 
-          {activeTab === 'itinerary' && (
-            <ItineraryView activeTrip={activeTrip} onUpdateTrip={handleUpdateTrip} />
-          )}
+              {activeTab === 'itinerary' && (
+                <ItineraryView activeTrip={activeTrip} onUpdateTrip={handleUpdateTrip} currency={currency} />
+              )}
 
-          {activeTab === 'flights' && (
-            <FlightIntelligenceView
-              flights={activeTrip?.flights || []}
-              activeTrip={activeTrip}
-              onSelectFlight={handleSelectFlight}
-            />
-          )}
+              {activeTab === 'flights' && (
+                <FlightIntelligenceView
+                  flights={activeTrip?.flights || []}
+                  activeTrip={activeTrip}
+                  onSelectFlight={handleSelectFlight}
+                  currency={currency}
+                />
+              )}
 
-          {activeTab === 'hotels' && (
-            <HotelIntelligenceView
-              hotels={activeTrip?.hotels || []}
-              activeTrip={activeTrip}
-              onSelectHotel={handleSelectHotel}
-            />
-          )}
+              {activeTab === 'hotels' && (
+                <HotelIntelligenceView
+                  hotels={activeTrip?.hotels || []}
+                  activeTrip={activeTrip}
+                  onSelectHotel={handleSelectHotel}
+                  currency={currency}
+                />
+              )}
 
-          {activeTab === 'budget' && (
-            <BudgetDashboardView
-              activeTrip={activeTrip}
-              onUpdateTrip={handleUpdateTrip}
-              currency={currency}
-            />
-          )}
+              {activeTab === 'budget' && (
+                <BudgetDashboardView
+                  activeTrip={activeTrip}
+                  onUpdateTrip={handleUpdateTrip}
+                  currency={currency}
+                />
+              )}
 
-          {activeTab === 'map' && <MapView activeTrip={activeTrip} />}
+              {activeTab === 'map' && (
+                <MapView
+                  activeTrip={activeTrip}
+                  onUpdateTrip={handleUpdateTrip}
+                  currency={currency}
+                />
+              )}
 
-          {activeTab === 'visa' && <VisaSafetyView activeTrip={activeTrip} />}
+              {activeTab === 'visa' && <VisaSafetyView activeTrip={activeTrip} />}
 
-          {activeTab === 'packing' && (
-            <PackingView activeTrip={activeTrip} onUpdateTrip={handleUpdateTrip} />
-          )}
+              {activeTab === 'packing' && (
+                <PackingView activeTrip={activeTrip} onUpdateTrip={handleUpdateTrip} />
+              )}
 
-          {activeTab === 'journal' && (
-            <JournalView activeTrip={activeTrip} onUpdateTrip={handleUpdateTrip} />
-          )}
+              {activeTab === 'journal' && (
+                <JournalView activeTrip={activeTrip} onUpdateTrip={handleUpdateTrip} />
+              )}
 
-          {activeTab === 'profile' && (
-            <ProfileMemoryView
-              selectedPersona={selectedPersona}
-              personas={personas}
-              onChangePersona={setSelectedPersona}
-            />
-          )}
+              {activeTab === 'profile' && (
+                <ProfileMemoryView
+                  selectedPersona={selectedPersona}
+                  personas={personas}
+                  onChangePersona={setSelectedPersona}
+                />
+              )}
 
-          {activeTab === 'simulator' && (
-            <TripSimulatorView activeTrip={activeTrip} onUpdateTrip={handleUpdateTrip} />
-          )}
+              {activeTab === 'simulator' && (
+                <TripSimulatorView activeTrip={activeTrip} onUpdateTrip={handleUpdateTrip} currency={currency} />
+              )}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 

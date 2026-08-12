@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { Trip, Persona } from '../types';
+import { WeatherWidget } from './WeatherWidget';
+import { CircularProgress } from './CircularProgress';
+import { formatCurrency } from '../utils/currency';
 import {
   Sparkles,
   Calendar,
@@ -26,6 +29,7 @@ interface DashboardViewProps {
   onSelectTrip: (trip: Trip) => void;
   onOpenNewTripModal: () => void;
   onNavigateTab: (tab: string) => void;
+  currency?: string;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -35,12 +39,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSelectTrip,
   onOpenNewTripModal,
   onNavigateTab,
+  currency = 'USD',
 }) => {
   // Currency Converter State
   const [sourceCurrency, setSourceCurrency] = useState<string>('USD');
   const [targetCurrency, setTargetCurrency] = useState<string>('JPY');
   const [amount, setAmount] = useState<string>('100');
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Activity completion stats for active trip progress
+  const totalActivities = activeTrip
+    ? activeTrip.days.reduce((acc, d) => acc + (d.activities?.length || 0), 0)
+    : 0;
+
+  const completedActivities = activeTrip
+    ? activeTrip.days.reduce(
+        (acc, d) => acc + (d.activities?.filter((a) => a.completed)?.length || 0),
+        0
+      )
+    : 0;
 
   // Exchange rates relative to USD
   const ratesToUSD: Record<string, { rate: number; symbol: string; name: string }> = {
@@ -380,7 +397,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <DollarSign className="h-3.5 w-3.5 text-emerald-400" /> Budget
                   </div>
                   <div className="text-sm font-semibold text-white mt-1">
-                    ${activeTrip.budget} {activeTrip.currency}
+                    {formatCurrency(activeTrip.budget, currency)}
                   </div>
                 </div>
 
@@ -425,6 +442,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Itinerary Progress & Destination Weather Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <CircularProgress
+              completedCount={completedActivities}
+              totalCount={totalActivities}
+              title={`${activeTrip.destination} Progress`}
+              subtitle="Itinerary Completion"
+            />
+            <WeatherWidget activeTrip={activeTrip} />
           </div>
         </div>
       )}

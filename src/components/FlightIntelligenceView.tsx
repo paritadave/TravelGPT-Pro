@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { FlightOption, Trip } from '../types';
+import { formatCurrency } from '../utils/currency';
 import { Plane, Sparkles, Filter, ExternalLink, CheckCircle2, ArrowRight } from 'lucide-react';
 
 interface FlightIntelligenceViewProps {
   flights: FlightOption[];
   activeTrip: Trip | null;
   onSelectFlight?: (flight: FlightOption) => void;
+  currency?: string;
 }
 
 export const FlightIntelligenceView: React.FC<FlightIntelligenceViewProps> = ({
   flights,
   activeTrip,
   onSelectFlight,
+  currency = 'USD',
 }) => {
   const [filterStops, setFilterStops] = useState<number | 'all'>('all');
   const [selectedFlightId, setSelectedFlightId] = useState<string | null>(null);
@@ -118,7 +121,7 @@ export const FlightIntelligenceView: React.FC<FlightIntelligenceViewProps> = ({
                 <div className="flex items-center justify-between lg:justify-end gap-6 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-800">
                   <div className="text-right">
                     <div className="text-2xl font-black text-emerald-400 font-mono">
-                      ${flight.price} <span className="text-xs font-normal text-slate-400">{flight.currency}</span>
+                      {formatCurrency(flight.price, currency)}
                     </div>
                     <div className="text-[10px] text-slate-500">{flight.co2Emissions}</div>
                   </div>

@@ -60,11 +60,13 @@ An **AI-Native Multi-Agent Travel Copilot** that creates personalized trip itine
    - Framework Preset: **Vite**
    - Build Command: `npm run build`
    - Output Directory: `dist`
-3. **Environment Variables on Vercel:**
-   - Go to **Project Settings** > **Environment Variables**
+3. **Set Environment Variables on Vercel:**
+   - Navigate to **Project Settings** > **Environment Variables** in Vercel.
    - Add Key: `GEMINI_API_KEY`
    - Add Value: `[Your Gemini API Key]`
-4. **Deploy!** Your app browser tab will display **TravelGPT Pro - AI Travel Planner & Itinerary Copilot**.
+4. **Deploy & Enjoy!**
+   - Vercel automatically detects `/api/index.ts` and `vercel.json` to route all backend AI endpoints (`/api/ai/*`) through Vercel Serverless Functions.
+   - The browser tab will display **TravelGPT Pro - AI Travel Planner & Itinerary Copilot**.
 
 ---
 

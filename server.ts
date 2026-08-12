@@ -6,45 +6,80 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const app = express();
+export const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
 
-// Server-side Gemini initialization
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY || "",
-  httpOptions: {
-    headers: {
-      "User-Agent": "aistudio-build",
-    },
-  },
+// Enable CORS for Vercel and local client
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
 });
 
-// Helper for Gemini AI calls with fallback
-async function callGemini(prompt: string, systemInstruction?: string, isJson: boolean = false) {
-  try {
-    const model = "gemini-3.6-flash";
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        systemInstruction,
-        responseMimeType: isJson ? "application/json" : undefined,
-        temperature: 0.7,
-      },
-    });
-    return response.text;
-  } catch (err) {
-    console.error("Gemini API call failed:", err);
-    throw err;
+// Clean JSON response from Gemini markdown wraps
+function cleanJson(text: string): string {
+  if (!text) return "{}";
+  let cleaned = text.trim();
+  if (cleaned.startsWith("```json")) {
+    cleaned = cleaned.replace(/^```json\s*/i, "").replace(/\s*```$/, "");
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```\s*/, "").replace(/\s*```$/, "");
   }
+  return cleaned.trim();
 }
 
-// API Routes
+// Helper for Gemini AI calls with robust multi-model fallback
+async function callGemini(prompt: string, systemInstruction?: string, isJson: boolean = false) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is missing in environment variables. Please add GEMINI_API_KEY in Vercel project settings under Environment Variables.");
+  }
+  
+  const ai = new GoogleGenAI({
+    apiKey,
+    httpOptions: {
+      headers: {
+        "User-Agent": "aistudio-build",
+      },
+    },
+  });
+
+  const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash"];
+  let lastError: any = null;
+
+  for (const model of modelsToTry) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          systemInstruction,
+          responseMimeType: isJson ? "application/json" : undefined,
+          temperature: 0.7,
+        },
+      });
+      const text = response.text || "";
+      return isJson ? cleanJson(text) : text;
+    } catch (err: any) {
+      console.warn(`Model ${model} call failed, trying fallback model...`, err?.message || err);
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error("Failed to generate AI response from Gemini models.");
+}
+
+// AI Express Router
+const aiRouter = express.Router();
 
 // 1. Multi-Agent Copilot Chat Endpoint
-app.post("/api/ai/chat", async (req, res) => {
+aiRouter.post("/chat", async (req, res) => {
   try {
     const { message, activeAgent = "Coordinator", context } = req.body;
 
@@ -52,6 +87,11 @@ app.post("/api/ai/chat", async (req, res) => {
 You are part of a multi-agent AI travel orchestration engine (Agents: Coordinator, Planner, Flight, Hotel, Restaurant, Budget, Weather, Navigation, Packing, Visa, Memory).
 Current Active Role: ${activeAgent}
 Context of trip/user: ${JSON.stringify(context || {})}
+
+IMPORTANT FORMATTING RULES:
+- Do NOT use raw markdown hashes (like ##, ###) or markdown horizontal dividers (like --- or ***).
+- Write in clean, highly readable paragraphs, elegant section titles, and bullet lists using standard bullet characters (•).
+- Avoid unnecessary markdown markup. Keep the response natural, clear, and beautiful.
 
 Provide a highly structured, concise, friendly, and actionable response.
 When appropriate, include practical recommendations, estimated prices, and suggest next steps.
@@ -68,7 +108,7 @@ If the request touches on budget, flights, weather, or itinerary, acknowledge ho
 });
 
 // 2. Structured Itinerary Generator
-app.post("/api/ai/plan-trip", async (req, res) => {
+aiRouter.post("/plan-trip", async (req, res) => {
   try {
     const { destination, days = 3, budget, persona, interests, startingCity } = req.body;
 
@@ -98,7 +138,7 @@ Return a JSON object with this exact structure:
           "title": "Activity Name",
           "time": "09:00 AM",
           "location": "Specific Spot Name",
-          "category": "sightseeing", // sightseeing | food | transit | accommodation | relaxation | adventure
+          "category": "sightseeing",
           "cost": 25,
           "rating": 4.8,
           "notes": "Practical tip or description",
@@ -132,7 +172,7 @@ Return a JSON object with this exact structure:
 });
 
 // 3. Dynamic Replanning Scenario Engine
-app.post("/api/ai/replan", async (req, res) => {
+aiRouter.post("/replan", async (req, res) => {
   try {
     const { scenario, currentItinerary, tripDetails } = req.body;
 
@@ -173,7 +213,7 @@ Return valid JSON with:
 });
 
 // 4. Visa & Safety Assistant
-app.post("/api/ai/visa-check", async (req, res) => {
+aiRouter.post("/visa-check", async (req, res) => {
   try {
     const { passportCountry = "United States", destination = "Japan" } = req.body;
 
@@ -205,7 +245,7 @@ Provide visa requirements and safety advisory information as valid JSON:
 });
 
 // 5. Smart Packing List Generator
-app.post("/api/ai/packing", async (req, res) => {
+aiRouter.post("/packing", async (req, res) => {
   try {
     const { destination, days, weather = "Sunny", activities = [] } = req.body;
 
@@ -260,7 +300,7 @@ Return JSON:
 });
 
 // 6. AI Travel Journal Story Generator
-app.post("/api/ai/journal", async (req, res) => {
+aiRouter.post("/journal", async (req, res) => {
   try {
     const { location, date, bulletNotes, mood } = req.body;
 
@@ -279,6 +319,101 @@ Write an engaging, atmospheric 2-paragraph travel journal narrative entry and ex
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
+// 7. Live & AI Weather Forecast Assistant
+aiRouter.post("/weather-forecast", async (req, res) => {
+  try {
+    const { destination = "Tokyo", startDate = "2026-08-15", endDate = "2026-08-20", days = 5 } = req.body;
+
+    const prompt = `Generate a realistic detailed weather forecast for travel to ${destination} between ${startDate} and ${endDate} (${days} days).
+
+Return valid JSON with this structure:
+{
+  "destination": "${destination}",
+  "dates": "${startDate} to ${endDate}",
+  "overallSummary": "Sunny with comfortable afternoon breezes, ideal for sightseeing.",
+  "averageHigh": "25°C",
+  "averageLow": "17°C",
+  "humidity": "54%",
+  "uvIndex": "Moderate (5)",
+  "precipitationChance": "10%",
+  "windSpeed": "12 km/h",
+  "clothingTip": "Light cotton clothing for daytime, lightweight layer for cool evenings.",
+  "daily": [
+    {
+      "day": "Day 1",
+      "date": "${startDate}",
+      "condition": "Sunny",
+      "tempHigh": "26°C",
+      "tempLow": "18°C",
+      "humidity": "50%",
+      "pop": "5%",
+      "icon": "Sun",
+      "tip": "Great weather for outdoor city exploration."
+    },
+    {
+      "day": "Day 2",
+      "condition": "Partly Cloudy",
+      "tempHigh": "24°C",
+      "tempLow": "17°C",
+      "humidity": "55%",
+      "pop": "15%",
+      "icon": "CloudSun",
+      "tip": "Comfortable for museum hopping & markets."
+    },
+    {
+      "day": "Day 3",
+      "condition": "Passing Showers",
+      "tempHigh": "22°C",
+      "tempLow": "16°C",
+      "humidity": "68%",
+      "pop": "45%",
+      "icon": "CloudRain",
+      "tip": "Carry a compact umbrella for scattered afternoon rain."
+    },
+    {
+      "day": "Day 4",
+      "condition": "Clear & Breezy",
+      "tempHigh": "25°C",
+      "tempLow": "17°C",
+      "humidity": "52%",
+      "pop": "10%",
+      "icon": "Wind",
+      "tip": "Ideal evening for scenic waterfront dining."
+    },
+    {
+      "day": "Day 5",
+      "date": "${endDate}",
+      "condition": "Sunny",
+      "tempHigh": "27°C",
+      "tempLow": "19°C",
+      "humidity": "48%",
+      "pop": "0%",
+      "icon": "Sun",
+      "tip": "Warm and pleasant day for departure or final shopping."
+    }
+  ]
+}`;
+
+    const jsonText = await callGemini(
+      prompt,
+      "You are TravelGPT Pro Weather Radar Agent. Return ONLY valid JSON.",
+      true
+    );
+
+    res.json({ success: true, weather: JSON.parse(jsonText || "{}") });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Mount router on multiple path variations for Vercel rewrite compatibility
+app.use("/api/ai", aiRouter);
+app.use("/ai", aiRouter);
+app.use("/api/index/ai", aiRouter);
+app.use("/api", aiRouter);
+
+export default app;
 
 // Start Express Server with Vite Middleware in Development
 async function startServer() {
@@ -301,4 +436,7 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+

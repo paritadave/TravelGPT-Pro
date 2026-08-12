@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trip, Activity, ActivityCategory } from '../types';
+import { formatCurrency } from '../utils/currency';
+import { CircularProgress } from './CircularProgress';
 import {
   Calendar,
   Clock,
@@ -22,6 +24,7 @@ import {
   RefreshCw,
   Sun,
   Info,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   DndContext,
@@ -44,6 +47,7 @@ import { CSS } from '@dnd-kit/utilities';
 interface ItineraryViewProps {
   activeTrip: Trip | null;
   onUpdateTrip: (updatedTrip: Trip) => void;
+  currency?: string;
 }
 
 interface SortableActivityItemProps {
@@ -54,6 +58,7 @@ interface SortableActivityItemProps {
   convertCost: (cost: number) => string;
   onDelete: (id: string) => void;
   onUpdateTime: (id: string, newTime: string) => void;
+  onToggleComplete: (id: string) => void;
 }
 
 const SortableActivityItem: React.FC<SortableActivityItemProps> = ({
@@ -62,6 +67,7 @@ const SortableActivityItem: React.FC<SortableActivityItemProps> = ({
   convertCost,
   onDelete,
   onUpdateTime,
+  onToggleComplete,
 }) => {
   const {
     attributes,
@@ -86,10 +92,26 @@ const SortableActivityItem: React.FC<SortableActivityItemProps> = ({
       className={`p-4 rounded-xl border transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group ${
         isDragging
           ? 'opacity-60 border-cyan-400 bg-cyan-950/40 ring-2 ring-cyan-500/50 shadow-2xl z-50 scale-[1.01]'
+          : activity.completed
+          ? 'bg-slate-900/80 border-emerald-500/30 text-slate-300'
           : 'bg-slate-800/60 border-slate-700/70 hover:border-cyan-500/50 hover:bg-slate-800'
       }`}
     >
       <div className="flex items-start gap-3 flex-1 min-w-0">
+        {/* Completion Checkbox */}
+        <button
+          type="button"
+          onClick={() => onToggleComplete(activity.id)}
+          className={`p-2 rounded-xl border transition shrink-0 self-center ${
+            activity.completed
+              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm'
+              : 'bg-slate-900 text-slate-500 border-slate-700 hover:text-cyan-400 hover:border-cyan-500/50'
+          }`}
+          title={activity.completed ? 'Mark activity incomplete' : 'Mark activity completed'}
+        >
+          <CheckCircle2 className="h-5 w-5" />
+        </button>
+
         {/* Drag Handle with dnd-kit listeners and attributes */}
         <button
           type="button"
@@ -102,7 +124,7 @@ const SortableActivityItem: React.FC<SortableActivityItemProps> = ({
           <GripVertical className="h-5 w-5" />
         </button>
 
-        <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 shrink-0">
+        <div className={`p-2.5 rounded-xl border shrink-0 ${activity.completed ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'}`}>
           <CategoryIcon className="h-5 w-5" />
         </div>
 
@@ -124,8 +146,14 @@ const SortableActivityItem: React.FC<SortableActivityItemProps> = ({
             <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-slate-700 text-slate-300">
               {activity.category}
             </span>
+
+            {activity.completed && (
+              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                Completed
+              </span>
+            )}
           </div>
-          <h3 className="font-bold text-white text-sm truncate">{activity.title}</h3>
+          <h3 className={`font-bold text-sm truncate ${activity.completed ? 'line-through text-slate-400' : 'text-white'}`}>{activity.title}</h3>
           <p className="text-xs text-slate-400 flex items-center gap-1">
             <MapPin className="h-3 w-3 text-slate-500 shrink-0" />
             <span className="truncate">{activity.location}</span>
@@ -160,7 +188,7 @@ const SortableActivityItem: React.FC<SortableActivityItemProps> = ({
   );
 };
 
-export const ItineraryView: React.FC<ItineraryViewProps> = ({ activeTrip, onUpdateTrip }) => {
+export const ItineraryView: React.FC<ItineraryViewProps> = ({ activeTrip, onUpdateTrip, currency = 'USD' }) => {
   const [selectedDayNumber, setSelectedDayNumber] = useState<number>(1);
   const [showAddModal, setShowAddModal] = useState(false);
   const [isReplanning, setIsReplanning] = useState(false);
@@ -170,7 +198,11 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ activeTrip, onUpda
   const [isRefreshingWeather, setIsRefreshingWeather] = useState(false);
 
   // Currency Converter State
-  const [targetCurrency, setTargetCurrency] = useState<string>('JPY');
+  const [targetCurrency, setTargetCurrency] = useState<string>(currency);
+
+  useEffect(() => {
+    setTargetCurrency(currency);
+  }, [currency]);
   const [customAmount, setCustomAmount] = useState<string>('50');
 
   // New Activity Form State
@@ -192,6 +224,18 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ activeTrip, onUpda
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Activity completion stats for total active trip
+  const totalTripActivities = activeTrip
+    ? activeTrip.days.reduce((acc, d) => acc + (d.activities?.length || 0), 0)
+    : 0;
+
+  const completedTripActivities = activeTrip
+    ? activeTrip.days.reduce(
+        (acc, d) => acc + (d.activities?.filter((a) => a.completed)?.length || 0),
+        0
+      )
+    : 0;
 
   if (!activeTrip) {
     return (
@@ -226,8 +270,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ activeTrip, onUpda
   const currInfo = exchangeRates[targetCurrency] || exchangeRates.JPY;
 
   const convertCost = (usdAmount: number) => {
-    const val = usdAmount * currInfo.rate;
-    return `${currInfo.symbol}${Math.round(val).toLocaleString()}`;
+    return formatCurrency(usdAmount, targetCurrency);
   };
 
   // Temperature helper
@@ -325,6 +368,26 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ activeTrip, onUpda
     onUpdateTrip({ ...activeTrip, days: updatedDays });
   };
 
+  const handleToggleActivityComplete = (actId: string) => {
+    if (!currentDay || !activeTrip) return;
+
+    const updatedActivities = currentDay.activities.map((act) => {
+      if (act.id === actId) {
+        return { ...act, completed: !act.completed };
+      }
+      return act;
+    });
+
+    const updatedDays = activeTrip.days.map((d) => {
+      if (d.dayNumber === selectedDayNumber) {
+        return { ...d, activities: updatedActivities };
+      }
+      return d;
+    });
+
+    onUpdateTrip({ ...activeTrip, days: updatedDays });
+  };
+
   const handleAIReplanDay = async () => {
     setIsReplanning(true);
     try {
@@ -337,6 +400,10 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ activeTrip, onUpda
           tripDetails: { destination: activeTrip.destination },
         }),
       });
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('API route returned non-JSON.');
+      }
       const data = await res.json();
       if (data.success && data.plan?.revisedActivities) {
         const revised = data.plan.revisedActivities.map((ra: any, idx: number) => ({
@@ -362,8 +429,40 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ activeTrip, onUpda
 
         onUpdateTrip({ ...activeTrip, days: updatedDays });
       }
-    } catch (e) {
-      console.error(e);
+    } catch {
+      // Local fallback optimization if server endpoint unavailable
+      if (currentDay && currentDay.activities.length > 0) {
+        const revised = [...currentDay.activities].map((act, idx) => ({
+          ...act,
+          time: idx === 0 ? '09:00 AM' : idx === 1 ? '12:00 PM' : idx === 2 ? '03:30 PM' : '07:00 PM',
+        }));
+
+        // Add a local coffee break
+        if (!revised.some((a) => a.title.includes('Coffee'))) {
+          revised.splice(2, 0, {
+            id: 'rev-coffee-' + Date.now(),
+            title: `Artisan Coffee & Pastry Break in ${activeTrip.destination}`,
+            time: '02:30 PM',
+            location: `${activeTrip.destination} Roastery`,
+            category: 'food',
+            cost: 8,
+            notes: 'Relaxing coffee stop optimized into itinerary.',
+          });
+        }
+
+        const updatedDays = activeTrip.days.map((d) => {
+          if (d.dayNumber === selectedDayNumber) {
+            return {
+              ...d,
+              activities: revised,
+              dailyBudgetSpent: revised.reduce((acc, c) => acc + (c.cost || 0), 0),
+            };
+          }
+          return d;
+        });
+
+        onUpdateTrip({ ...activeTrip, days: updatedDays });
+      }
     } finally {
       setIsReplanning(false);
     }
@@ -408,6 +507,14 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ activeTrip, onUpda
           </button>
         </div>
       </div>
+
+      {/* Circular Progress Indicator */}
+      <CircularProgress
+        completedCount={completedTripActivities}
+        totalCount={totalTripActivities}
+        title={`${activeTrip.destination} Itinerary Progress`}
+        subtitle="Completed Activities"
+      />
 
       {/* Days Navigation Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
@@ -606,6 +713,7 @@ export const ItineraryView: React.FC<ItineraryViewProps> = ({ activeTrip, onUpda
                       convertCost={convertCost}
                       onDelete={handleDeleteActivity}
                       onUpdateTime={handleUpdateTime}
+                      onToggleComplete={handleToggleActivityComplete}
                     />
                   ))}
                 </div>

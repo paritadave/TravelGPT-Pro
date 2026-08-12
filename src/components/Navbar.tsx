@@ -1,6 +1,7 @@
 import React from 'react';
 import { Trip, Persona } from '../types';
-import { Compass, Plus, Sparkles, User, Globe, ChevronDown, ShieldCheck } from 'lucide-react';
+import { CURRENCIES, getCurrencyInfo } from '../utils/currency';
+import { Compass, Plus, Sparkles, User, Globe, ChevronDown, Coins } from 'lucide-react';
 
 interface NavbarProps {
   activeTrip: Trip | null;
@@ -31,6 +32,9 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [showTripDropdown, setShowTripDropdown] = React.useState(false);
   const [showPersonaDropdown, setShowPersonaDropdown] = React.useState(false);
+  const [showCurrencyDropdown, setShowCurrencyDropdown] = React.useState(false);
+
+  const activeCurrInfo = getCurrencyInfo(currency);
 
   return (
     <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white backdrop-blur-md bg-opacity-95 px-4 lg:px-6 py-3">
@@ -147,19 +151,45 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
 
-          {/* Currency Toggle */}
-          <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-0.5 text-xs text-slate-300">
-            {['USD', 'EUR', 'JPY'].map((curr) => (
-              <button
-                key={curr}
-                onClick={() => onChangeCurrency(curr)}
-                className={`px-2 py-1 rounded-md text-[11px] font-medium transition ${
-                  currency === curr ? 'bg-cyan-600 text-white shadow-sm' : 'hover:text-white'
-                }`}
-              >
-                {curr}
-              </button>
-            ))}
+          {/* Global Currency Converter Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+              className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-cyan-300 transition"
+              title="Global Currency Selection - Converts all prices app-wide"
+            >
+              <Coins className="h-3.5 w-3.5 text-amber-400" />
+              <span>
+                {activeCurrInfo.symbol} {activeCurrInfo.code}
+              </span>
+              <ChevronDown className="h-3 w-3 text-slate-400" />
+            </button>
+
+            {showCurrencyDropdown && (
+              <div className="absolute top-full mt-2 right-0 w-52 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl z-50 overflow-hidden py-1">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700/60">
+                  Select App-Wide Currency
+                </div>
+                {CURRENCIES.map((c) => (
+                  <button
+                    key={c.code}
+                    onClick={() => {
+                      onChangeCurrency(c.code);
+                      setShowCurrencyDropdown(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-700/80 transition ${
+                      currency === c.code ? 'bg-cyan-950/60 text-cyan-300 font-bold' : 'text-slate-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 font-mono text-center text-amber-400 font-bold">{c.symbol}</span>
+                      <span>{c.code}</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">{c.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Plan New Trip CTA Button */}

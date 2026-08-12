@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
 import { HotelOption, Trip } from '../types';
+import { formatCurrency } from '../utils/currency';
 import { Building2, Star, Sparkles, MapPin, ExternalLink, CheckCircle2, Shield } from 'lucide-react';
 
 interface HotelIntelligenceViewProps {
   hotels: HotelOption[];
   activeTrip: Trip | null;
   onSelectHotel?: (hotel: HotelOption) => void;
+  currency?: string;
 }
 
 export const HotelIntelligenceView: React.FC<HotelIntelligenceViewProps> = ({
   hotels,
   activeTrip,
   onSelectHotel,
+  currency = 'USD',
 }) => {
   const [selectedHotelId, setSelectedHotelId] = useState<string | null>(null);
 
@@ -90,7 +93,7 @@ export const HotelIntelligenceView: React.FC<HotelIntelligenceViewProps> = ({
               <div className="p-5 border-t border-slate-800 flex items-center justify-between">
                 <div>
                   <div className="text-xl font-extrabold text-emerald-400 font-mono">
-                    ${hotel.pricePerNight} <span className="text-xs font-normal text-slate-400">/ night</span>
+                    {formatCurrency(hotel.pricePerNight, currency)} <span className="text-xs font-normal text-slate-400">/ night</span>
                   </div>
                 </div>
 

@@ -35,12 +35,17 @@ export const JournalView: React.FC<JournalViewProps> = ({ activeTrip, onUpdateTr
           mood,
         }),
       });
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('API route returned non-JSON.');
+      }
       const data = await res.json();
       if (data.success && data.story) {
         content = data.story;
       }
-    } catch (e) {
-      console.error(e);
+    } catch {
+      const loc = location || activeTrip.destination;
+      content = `The air in ${loc} carried a distinct magic today. ${notes}\n\nWalking through the historic streets with a feeling of pure ${mood.toLowerCase()}, every corner offered something memorable. From the local sights to the rich aromas of street side cafes, this day will remain a highlight of our journey.`;
     } finally {
       setIsGenerating(false);
     }

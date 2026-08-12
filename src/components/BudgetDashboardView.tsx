@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Trip, Expense } from '../types';
+import { formatCurrency } from '../utils/currency';
 import {
   Wallet,
   DollarSign,
@@ -103,7 +104,7 @@ export const BudgetDashboardView: React.FC<BudgetDashboardViewProps> = ({
           </div>
           <h1 className="text-2xl font-bold text-white mt-1">Financial Intelligence & Expenses</h1>
           <p className="text-xs text-slate-400 mt-1">
-            Trip: {activeTrip.title} • Target Budget: ${totalBudget} {currency}
+            Trip: {activeTrip.title} • Target Budget: {formatCurrency(totalBudget, currency)}
           </p>
         </div>
 
@@ -122,15 +123,15 @@ export const BudgetDashboardView: React.FC<BudgetDashboardViewProps> = ({
             <div>
               <div className="text-xs text-slate-400">Total Spent</div>
               <div className="text-3xl font-black text-white font-mono mt-1">
-                ${totalSpent}{' '}
-                <span className="text-sm font-normal text-slate-400">/ ${totalBudget} {currency}</span>
+                {formatCurrency(totalSpent, currency)}{' '}
+                <span className="text-sm font-normal text-slate-400">/ {formatCurrency(totalBudget, currency)}</span>
               </div>
             </div>
 
             <div className="text-right">
               <div className="text-xs text-slate-400">Remaining Budget</div>
               <div className={`text-xl font-bold font-mono mt-1 ${totalBudget - totalSpent < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                ${totalBudget - totalSpent} {currency}
+                {formatCurrency(totalBudget - totalSpent, currency)}
               </div>
             </div>
           </div>
@@ -243,7 +244,7 @@ export const BudgetDashboardView: React.FC<BudgetDashboardViewProps> = ({
                   <td className="p-3 font-semibold text-white">{exp.title}</td>
                   <td className="p-3 uppercase text-[10px] text-cyan-400 font-mono">{exp.category}</td>
                   <td className="p-3 text-slate-400">{exp.date}</td>
-                  <td className="p-3 text-right font-bold text-emerald-400 font-mono">${exp.amount}</td>
+                  <td className="p-3 text-right font-bold text-emerald-400 font-mono">{formatCurrency(exp.amount, currency)}</td>
                   <td className="p-3 text-center">
                     <CheckCircle2 className="h-4 w-4 text-emerald-400 mx-auto" />
                   </td>

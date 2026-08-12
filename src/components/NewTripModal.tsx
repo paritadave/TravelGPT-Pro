@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Trip, Persona } from '../types';
-import { Sparkles, Loader2, Compass, DollarSign, Calendar, MapPin, X } from 'lucide-react';
+import { checkVisaRequirement } from '../utils/visaChecker';
+import { Sparkles, Loader2, Compass, DollarSign, Calendar, MapPin, X, ShieldCheck } from 'lucide-react';
 
 interface NewTripModalProps {
   isOpen: boolean;
@@ -79,6 +80,11 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
         }),
       });
 
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('API route returned non-JSON.');
+      }
+
       const data = await res.json();
 
       if (data.success && data.itinerary) {
@@ -109,13 +115,73 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
       } else {
         throw new Error('Fallback to local creation');
       }
-    } catch (error) {
-      // Fallback local trip creation if API offline
+    } catch {
+      // Generate multi-day trip fallback matching user interests
+      const hasVeg = interests.some((i) => i.toLowerCase().includes('veg'));
+      const hasBaby = interests.some((i) => i.toLowerCase().includes('baby'));
+
+      const generatedDays = Array.from({ length: days }).map((_, idx) => {
+        const dNum = idx + 1;
+        let theme = `Day ${dNum} - Highlights & Local Discovery`;
+        if (dNum === 1) theme = 'Day 1 - Arrival, Hotel Check-in & Evening Stroll';
+        if (dNum === days) theme = `Day ${days} - Cultural Landmarks, Souvenirs & Departure`;
+
+        return {
+          dayNumber: dNum,
+          date: `Day ${dNum}`,
+          theme,
+          dailyBudgetSpent: Math.round(budget / days),
+          weatherForecast: '☀️ 23°C Clear & Pleasant',
+          activities: [
+            {
+              id: `act-${dNum}-1`,
+              title: dNum === 1 ? 'Check-in & Neighborhood Orientation' : `${destination} Historic Landmarks Tour`,
+              time: '09:30 AM',
+              location: `${destination} Central Square`,
+              category: 'sightseeing' as const,
+              cost: dNum === 1 ? 0 : 25,
+              rating: 4.8,
+              notes: hasBaby ? 'Pram/stroller accessible route with shaded seating areas.' : 'Iconic photo spot and historic overview.',
+            },
+            {
+              id: `act-${dNum}-2`,
+              title: hasVeg ? 'Gourmet Organic Veg & Plant-Based Lunch' : 'Authentic Regional Food Market Tour',
+              time: '01:00 PM',
+              location: `${destination} Culinary Quarter`,
+              category: 'food' as const,
+              cost: 30,
+              rating: 4.9,
+              notes: hasVeg ? 'Features certified vegan/vegetarian dishes and fresh juices.' : 'Local culinary specialties and fresh seasonal bites.',
+            },
+            {
+              id: `act-${dNum}-3`,
+              title: 'Cultural Museum & Scenic Viewpoint',
+              time: '04:00 PM',
+              location: `${destination} Heritage Center`,
+              category: 'sightseeing' as const,
+              cost: 15,
+              rating: 4.7,
+              notes: 'Interactive exhibits and panoramic views over the city.',
+            },
+            {
+              id: `act-${dNum}-4`,
+              title: 'Relaxing Evening Stroll & Dinner',
+              time: '07:30 PM',
+              location: `${destination} Waterfront / Old Town`,
+              category: 'relaxation' as const,
+              cost: 45,
+              rating: 4.8,
+              notes: 'Atmospheric dining and stroll along lit pedestrian avenues.',
+            },
+          ],
+        };
+      });
+
       const newTrip: Trip = {
         id: 'trip-' + Date.now(),
-        title: `${destination} ${days}-Day AI Trip`,
+        title: `${destination} ${days}-Day AI Journey`,
         destination,
-        startingCity,
+        startingCity: startingCity || 'Home City',
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date(Date.now() + days * 86400000).toISOString().split('T')[0],
         totalDays: days,
@@ -124,32 +190,60 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
         travelerPersona: persona,
         status: 'upcoming',
         coverImage: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=1000&auto=format&fit=crop&q=80',
-        days: [
+        days: generatedDays,
+        flights: [
           {
-            dayNumber: 1,
-            date: 'Day 1',
-            theme: 'Arrival & City Orientation',
-            dailyBudgetSpent: 150,
-            weatherForecast: '☀️ 22°C Sunny',
-            activities: [
-              {
-                id: 'a1',
-                title: 'Check in & Explore Central Quarter',
-                time: '02:00 PM',
-                location: destination,
-                category: 'sightseeing',
-                cost: 0,
-                notes: 'Welcome stroll and local coffee stop.',
-              },
+            id: 'fl-1',
+            airline: 'Global Airways',
+            logo: '✈️',
+            flightNumber: 'GA-842',
+            departureAirport: startingCity || 'SFO',
+            arrivalAirport: destination.slice(0, 3).toUpperCase(),
+            departureTime: '08:30 AM',
+            arrivalTime: '02:15 PM',
+            duration: '5h 45m',
+            stops: 0,
+            price: Math.round(budget * 0.35),
+            currency: 'USD',
+            co2Emissions: '140kg CO2',
+            aiScore: 98,
+            tags: ['Non-stop', 'Best Value'],
+            bookingUrl: 'https://google.com/flights',
+          },
+        ],
+        hotels: [
+          {
+            id: 'ht-1',
+            name: `${destination} Grand Central Hotel`,
+            stars: 4,
+            rating: 4.8,
+            reviewsCount: 340,
+            pricePerNight: Math.round((budget * 0.4) / days),
+            currency: 'USD',
+            location: 'Downtown Center',
+            neighborhood: 'Central Quarter',
+            image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80',
+            amenities: ['Free High-Speed Wi-Fi', 'Breakfast Included', 'Family Friendly', 'Spa & Pool'],
+            aiMatchScore: 96,
+            distanceToCenter: '0.4 km from center',
+            bookingUrl: 'https://google.com/travel/hotels',
+          },
+        ],
+        packingCategories: [
+          {
+            category: 'Essential Gear',
+            items: [
+              { id: 'pk-1', name: 'Passport & Travel Documents', packed: false, essential: true, category: 'Essential Gear' },
+              { id: 'pk-2', name: 'Universal Plug Adapter', packed: false, essential: true, category: 'Essential Gear' },
+              { id: 'pk-3', name: 'Portable Power Bank', packed: false, essential: true, category: 'Essential Gear' },
+              { id: 'pk-4', name: 'Comfy Walking Shoes', packed: false, essential: true, category: 'Essential Gear' },
             ],
           },
         ],
-        flights: [],
-        hotels: [],
-        packingCategories: [],
         expenses: [],
         journalEntries: [],
       };
+
       onAddTrip(newTrip);
       onClose();
     } finally {
@@ -185,6 +279,17 @@ export const NewTripModal: React.FC<NewTripModalProps> = ({
                 placeholder="e.g. Paris, France"
                 className="w-full mt-1 bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 outline-none focus:border-cyan-500"
               />
+              {destination && (() => {
+                const liveVisaInfo = checkVisaRequirement('United States', destination);
+                return (
+                  <div className={`mt-2 p-2 rounded-xl border text-[11px] font-medium flex items-center gap-2 ${liveVisaInfo.badgeStyle.bg} ${liveVisaInfo.badgeStyle.text} ${liveVisaInfo.badgeStyle.border}`}>
+                    <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate font-semibold">
+                      {liveVisaInfo.statusHeading} ({liveVisaInfo.allowedStay})
+                    </span>
+                  </div>
+                );
+              })()}
             </div>
             <div>
               <label className="text-slate-400 font-medium">Starting City</label>

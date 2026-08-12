@@ -30,6 +30,7 @@ export interface Activity {
   notes?: string;
   coordinates?: { lat: number; lng: number };
   photoUrl?: string;
+  completed?: boolean;
 }
 
 export interface DayItinerary {

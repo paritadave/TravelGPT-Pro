@@ -248,6 +248,7 @@ export const SAMPLE_TRIPS: Trip[] = [
             cost: 15,
             notes: 'Follow signs to Tokyo Monorail. Digital Pasmo card works on Apple Pay.',
             coordinates: { lat: 35.5494, lng: 139.7798 },
+            completed: true,
           },
           {
             id: 'act-102',
@@ -258,6 +259,7 @@ export const SAMPLE_TRIPS: Trip[] = [
             cost: 0,
             notes: 'Unpack and enjoy welcome green tea on the balcony.',
             coordinates: { lat: 35.6691, lng: 139.6923 },
+            completed: true,
           },
           {
             id: 'act-103',
@@ -269,6 +271,7 @@ export const SAMPLE_TRIPS: Trip[] = [
             rating: 4.8,
             notes: 'Try grilled chicken skewers, highballs, and tsukune.',
             coordinates: { lat: 35.6931, lng: 139.6994 },
+            completed: true,
           },
         ],
       },
