@@ -127,7 +127,15 @@ export default function App() {
                 />
               )}
 
-              {activeTab === 'copilot' && <CopilotView activeTrip={activeTrip} />}
+              {activeTab === 'copilot' && (
+                <CopilotView
+                  activeTrip={activeTrip}
+                  onAddTrip={handleAddTrip}
+                  onSelectTrip={handleSelectTrip}
+                  onNavigateTab={setActiveTab}
+                  currency={currency}
+                />
+              )}
 
               {activeTab === 'itinerary' && (
                 <ItineraryView activeTrip={activeTrip} onUpdateTrip={handleUpdateTrip} currency={currency} />

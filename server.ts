@@ -34,7 +34,9 @@ function cleanJson(text: string): string {
   return cleaned.trim();
 }
 
-// Helper for Gemini AI calls with robust multi-model fallback
+// Helper for Gemini AI calls with robust multi-model fallback and auto-retry on 503/429
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function callGemini(prompt: string, systemInstruction?: string, isJson: boolean = false) {
   const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
@@ -50,25 +52,42 @@ async function callGemini(prompt: string, systemInstruction?: string, isJson: bo
     },
   });
 
-  const modelsToTry = ["gemini-3.6-flash", "gemini-2.5-flash"];
+  const modelsToTry = [
+    "gemini-3.7-flash",
+    "gemini-flash-latest",
+    "gemini-3.1-flash-lite",
+  ];
+
   let lastError: any = null;
 
   for (const model of modelsToTry) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          systemInstruction,
-          responseMimeType: isJson ? "application/json" : undefined,
-          temperature: 0.7,
-        },
-      });
-      const text = response.text || "";
-      return isJson ? cleanJson(text) : text;
-    } catch (err: any) {
-      console.warn(`Model ${model} call failed, trying fallback model...`, err?.message || err);
-      lastError = err;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents: prompt,
+          config: {
+            systemInstruction,
+            responseMimeType: isJson ? "application/json" : undefined,
+            temperature: 0.7,
+          },
+        });
+        const text = response.text || "";
+        return isJson ? cleanJson(text) : text;
+      } catch (err: any) {
+        lastError = err;
+        const status = err?.status || err?.code || "";
+        const errMsg = err?.message || "";
+        
+        // If 503 (high demand) or 429 (rate limit), wait briefly before retrying
+        if (attempt < 3 && (status === 503 || status === 429 || errMsg.includes("503") || errMsg.includes("quota") || errMsg.includes("demand") || errMsg.includes("UNAVAILABLE"))) {
+          await delay(1000 * attempt);
+          continue;
+        }
+        
+        console.warn(`Model ${model} failed after ${attempt} attempt(s) [${status}]: ${errMsg}`);
+        break;
+      }
     }
   }
 
@@ -88,14 +107,12 @@ You are part of a multi-agent AI travel orchestration engine (Agents: Coordinato
 Current Active Role: ${activeAgent}
 Context of trip/user: ${JSON.stringify(context || {})}
 
-IMPORTANT FORMATTING RULES:
-- Do NOT use raw markdown hashes (like ##, ###) or markdown horizontal dividers (like --- or ***).
-- Write in clean, highly readable paragraphs, elegant section titles, and bullet lists using standard bullet characters (•).
-- Avoid unnecessary markdown markup. Keep the response natural, clear, and beautiful.
-
-Provide a highly structured, concise, friendly, and actionable response.
-When appropriate, include practical recommendations, estimated prices, and suggest next steps.
-If the request touches on budget, flights, weather, or itinerary, acknowledge how your agent specialized knowledge contributes.`;
+FORMATTING & RESPONSE GUIDELINES:
+- Write in clean, beautiful, highly readable markdown with section headings (using ###), bold highlights (**text**), and bullet points (•).
+- When the user asks for trip suggestions or recommendations for any destination, region, or travel style, provide 4 to 5 specific, high-quality choices.
+- For each recommendation, include: Best Duration, Estimated Budget (in USD), Highlights & Top Attractions, Visa Requirements, and Best Season to visit.
+- End your response with actionable suggestions or next steps.
+- Provide a highly structured, engaging, friendly, and expert travel response.`;
 
     const aiResponse = await callGemini(message, systemInstruction, false);
     res.json({ success: true, agent: activeAgent, response: aiResponse });
